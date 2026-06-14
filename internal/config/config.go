@@ -1,0 +1,33 @@
+package config
+
+import (
+	"os"
+
+	"github.com/joho/godotenv"
+)
+
+type Config struct {
+	ServerPort  string
+	DatabaseURL string
+	JWTSecret   string
+}
+
+func Load() (*Config, error) {
+	// Загружаем .env файл из корня проекта
+	if err := godotenv.Load(); err != nil {
+		// Не критично, если .env нет — можно использовать переменные окружения
+	}
+
+	return &Config{
+		ServerPort:  getEnv("SERVER_PORT", "8080"),
+		DatabaseURL: getEnv("DATABASE_URL", ""),
+		JWTSecret:   getEnv("JWT_SECRET", "supersecretkeychangeinproduction123456"),
+	}, nil
+}
+
+func getEnv(key, fallback string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return fallback
+}
