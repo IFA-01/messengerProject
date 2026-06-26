@@ -12,6 +12,7 @@ import (
 
 	"github.com/IFA-01/messenger/internal/config" // ← добавь
 	"github.com/IFA-01/messenger/internal/handlers"
+	"github.com/IFA-01/messenger/internal/middleware"
 	"github.com/IFA-01/messenger/internal/repository/queries"
 )
 
@@ -36,7 +37,7 @@ func main() {
 	r := chi.NewRouter()
 
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins: []string{"https://*", "http://*"},
+		AllowedOrigins: []string{"https://*"},
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{"*"},
 		ExposedHeaders: []string{"Link"},
@@ -45,12 +46,17 @@ func main() {
 	r.Get("/ping", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("pong"))
 	})
+	r.Get("/err", handlers.HandleErr)
 
 	//routes
 	r.Route("/v1", func(r chi.Router) {
 		r.Post("/users", handlers.HandlerCreateUser(q))
+		r.Post("/login", handlers.HandleLogin(q, cfg.JWTSecret))
+
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.AuthMiddleWare(cfg.JWTSecret))
+			r.Get("/users/me", handlers.HandleGetUser(q))
+		})
 	})
-
 	http.ListenAndServe(":"+cfg.ServerPort, r)
-
 }

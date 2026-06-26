@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/IFA-01/messenger/internal/auth"
 	"github.com/IFA-01/messenger/internal/models"
 	"github.com/IFA-01/messenger/internal/repository/queries"
-	"golang.org/x/crypto/bcrypt"
 )
 
 func HandlerCreateUser(q *queries.Queries) http.HandlerFunc {
@@ -29,7 +29,7 @@ func HandlerCreateUser(q *queries.Queries) http.HandlerFunc {
 			return
 		}
 
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(params.Password), bcrypt.DefaultCost)
+		hashedPassword, err := auth.HashPassword(params.Password)
 		if err != nil {
 			respondWithError(w, 400, fmt.Sprintf("error hashing password: %v", err))
 			return
@@ -51,6 +51,19 @@ func HandlerCreateUser(q *queries.Queries) http.HandlerFunc {
 		response.PasswordHash = ""
 
 		respondWithJSON(w, 200, response)
+	}
+}
 
+func HandleGetUser(q *queries.Queries) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userID := r.Context().Value("userID").(int64)
+		user, err := q.GetUserByID(r.Context(), userID)
+		if err != nil {
+			respondWithError(w, 400, fmt.Sprintf("Error getting user by ID: %v", err))
+			return
+		}
+		response := models.DatabaseUserToUser(user)
+		response.PasswordHash = ""
+		respondWithJSON(w, 200, response)
 	}
 }
