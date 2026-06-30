@@ -28,6 +28,7 @@ func HandleLogin(q *queries.Queries, jwtSecret string) http.HandlerFunc {
 		user, err := q.GetUserByEmail(r.Context(), params.Email)
 		if err != nil {
 			respondWithError(w, 400, fmt.Sprintf("Error getting user by email: %v:", err))
+			return
 		}
 
 		if err := auth.CheckPassword(params.Password, user.PasswordHash); err != nil {
