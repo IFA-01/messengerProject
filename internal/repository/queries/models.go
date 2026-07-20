@@ -8,6 +8,28 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Chat struct {
+	ID        int64              `db:"id" json:"id"`
+	Name      string             `db:"name" json:"name"`
+	IsGroup   bool               `db:"is_group" json:"is_group"`
+	CreatedAt pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+type ChatMember struct {
+	ChatID   int64              `db:"chat_id" json:"chat_id"`
+	UserID   int64              `db:"user_id" json:"user_id"`
+	JoinedAt pgtype.Timestamptz `db:"joined_at" json:"joined_at"`
+}
+
+type Message struct {
+	ID        int64              `db:"id" json:"id"`
+	ChatID    int64              `db:"chat_id" json:"chat_id"`
+	SenderID  int64              `db:"sender_id" json:"sender_id"`
+	Content   string             `db:"content" json:"content"`
+	CreatedAt pgtype.Timestamptz `db:"created_at" json:"created_at"`
+}
+
 type User struct {
 	ID           int64              `db:"id" json:"id"`
 	Username     string             `db:"username" json:"username"`

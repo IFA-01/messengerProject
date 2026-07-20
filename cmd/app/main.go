@@ -10,7 +10,7 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/IFA-01/messenger/internal/config" // ← добавь
+	"github.com/IFA-01/messenger/internal/config"
 	"github.com/IFA-01/messenger/internal/handlers"
 	"github.com/IFA-01/messenger/internal/middleware"
 	"github.com/IFA-01/messenger/internal/repository/queries"
@@ -55,7 +55,9 @@ func main() {
 
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.AuthMiddleWare(cfg.JWTSecret))
+
 			r.Get("/users/me", handlers.HandleGetUser(q))
+			r.Post("/chats", handlers.HandleCreateChat(q))
 		})
 	})
 	http.ListenAndServe(":"+cfg.ServerPort, r)
