@@ -14,7 +14,7 @@ func HandleCreateChat(q *queries.Queries) http.HandlerFunc {
 		userID := r.Context().Value("userID").(int64)
 
 		type parameters struct {
-			MemberID int64  `json:"member_id"`
+			Username string `json:"username"`
 			Name     string `json:"name"`
 		}
 
@@ -25,8 +25,20 @@ func HandleCreateChat(q *queries.Queries) http.HandlerFunc {
 			return
 		}
 
-		if params.MemberID == userID {
+		member, err := q.GetUserByUsername(r.Context(), params.Username)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, fmt.Sprintf("No user found with nickname: %s", params.Username))
+			return
+		}
+
+		if member.ID == userID {
 			respondWithError(w, http.StatusBadRequest, "cannot create chat with yourself")
+			return
+		}
+
+		_, err = q.GetUserByID(r.Context(), member.ID)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, fmt.Sprintf("No user found with id: %d", member.ID))
 			return
 		}
 
@@ -49,7 +61,7 @@ func HandleCreateChat(q *queries.Queries) http.HandlerFunc {
 		}
 		_, err = q.AddChatMember(r.Context(), queries.AddChatMemberParams{
 			ChatID: chat.ID,
-			UserID: params.MemberID,
+			UserID: member.ID,
 		})
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("error adding chat member: %v", err))

@@ -92,6 +92,26 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
 	return i, err
 }
 
+const getUserByNickName = `-- name: GetUserByNickName :one
+SELECT id, username, nickname, email, password_hash, last_seen, created_at, updated_at FROM users WHERE nickname = $1 LIMIT 1
+`
+
+func (q *Queries) GetUserByNickName(ctx context.Context, nickname string) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByNickName, nickname)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Nickname,
+		&i.Email,
+		&i.PasswordHash,
+		&i.LastSeen,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getUserByUsername = `-- name: GetUserByUsername :one
 SELECT id, username, nickname, email, password_hash, last_seen, created_at, updated_at FROM users WHERE username = $1 LIMIT 1
 `

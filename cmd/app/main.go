@@ -58,6 +58,9 @@ func main() {
 
 			r.Get("/users/me", handlers.HandleGetUser(q))
 			r.Post("/chats", handlers.HandleCreateChat(q))
+
+			r.Post("/messages", handlers.HandleCreateMessage(q))
+			r.Get("/messages/{chatID}", handlers.HandleListMessages(q))
 		})
 	})
 	http.ListenAndServe(":"+cfg.ServerPort, r)
