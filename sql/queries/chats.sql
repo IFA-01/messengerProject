@@ -23,3 +23,27 @@ RETURNING *;
 SELECT * FROM messages
 WHERE chat_id = $1
 ORDER BY created_at ASC;
+-- name: FindDirectChatsBetweenUsers :one
+SELECT c.*
+FROM chats c
+WHERE c.is_group = false
+  AND EXISTS (
+    SELECT 1 FROM chat_members cm1
+    WHERE cm1.chat_id = c.id AND cm1.user_id = $1
+  )
+  AND EXISTS (
+    SELECT 1 FROM chat_members cm2
+    WHERE cm2.chat_id = c.id AND cm2.user_id = $2
+  )
+  AND (
+    SELECT COUNT(*) FROM chat_members cm3
+    WHERE cm3.chat_id = c.id
+  ) = 2
+LIMIT 1;
+
+-- name: ListUsersChats :many
+SELECT c.*
+FROM chats c
+JOIN chat_members cm ON cm.chat_id = c.id
+WHERE cm.user_id = $1
+ORDER BY c.updated_at DESC;

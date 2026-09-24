@@ -13,9 +13,8 @@ type Config struct {
 }
 
 func Load() (*Config, error) {
-	// Загружаем .env файл из корня проекта
+
 	if err := godotenv.Load(); err != nil {
-		// Не критично, если .env нет — можно использовать переменные окружения
 	}
 
 	return &Config{

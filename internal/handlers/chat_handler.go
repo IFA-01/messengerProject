@@ -5,7 +5,11 @@ import (
 	"fmt"
 	"net/http"
 
+	"errors"
+
 	"github.com/IFA-01/messenger/internal/repository/queries"
+
+	"github.com/jackc/pgx/v5"
 )
 
 func HandleCreateChat(q *queries.Queries) http.HandlerFunc {
@@ -42,6 +46,19 @@ func HandleCreateChat(q *queries.Queries) http.HandlerFunc {
 			return
 		}
 
+		existingChat, err := q.FindDirectChatsBetweenUsers(r.Context(), queries.FindDirectChatsBetweenUsersParams{
+			UserID:   userID,
+			UserID_2: member.ID,
+		})
+		if err == nil {
+			respondWithJSON(w, http.StatusOK, existingChat)
+			return
+		}
+		if !errors.Is(err, pgx.ErrNoRows) {
+			respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("error checking existing chat: %v", err))
+			return
+		}
+
 		chat, err := q.CreateChat(r.Context(), queries.CreateChatParams{
 			Name:    params.Name,
 			IsGroup: false,
@@ -69,5 +86,22 @@ func HandleCreateChat(q *queries.Queries) http.HandlerFunc {
 		}
 
 		respondWithJSON(w, http.StatusCreated, chat)
+	}
+}
+
+func HandleListChats(q *queries.Queries) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userID := r.Context().Value("userID").(int64)
+
+		chats, err := q.ListUsersChats(r.Context(), userID)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("error listing chats: %v", err))
+			return
+		}
+
+		if chats == nil {
+			chats = []queries.Chat{}
+		}
+		respondWithJSON(w, http.StatusOK, map[string]interface{}{"chats": chats})
 	}
 }

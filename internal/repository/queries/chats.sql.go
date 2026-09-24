@@ -76,6 +76,43 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (M
 	return i, err
 }
 
+const findDirectChatsBetweenUsers = `-- name: FindDirectChatsBetweenUsers :one
+SELECT c.id, c.name, c.is_group, c.created_at, c.updated_at
+FROM chats c
+WHERE c.is_group = false
+  AND EXISTS (
+    SELECT 1 FROM chat_members cm1
+    WHERE cm1.chat_id = c.id AND cm1.user_id = $1
+  )
+  AND EXISTS (
+    SELECT 1 FROM chat_members cm2
+    WHERE cm2.chat_id = c.id AND cm2.user_id = $2
+  )
+  AND (
+    SELECT COUNT(*) FROM chat_members cm3
+    WHERE cm3.chat_id = c.id
+  ) = 2
+LIMIT 1
+`
+
+type FindDirectChatsBetweenUsersParams struct {
+	UserID   int64 `db:"user_id" json:"user_id"`
+	UserID_2 int64 `db:"user_id_2" json:"user_id_2"`
+}
+
+func (q *Queries) FindDirectChatsBetweenUsers(ctx context.Context, arg FindDirectChatsBetweenUsersParams) (Chat, error) {
+	row := q.db.QueryRow(ctx, findDirectChatsBetweenUsers, arg.UserID, arg.UserID_2)
+	var i Chat
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.IsGroup,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getChatByID = `-- name: GetChatByID :one
 SELECT id, name, is_group, created_at, updated_at FROM chats
 WHERE id = $1
@@ -135,6 +172,40 @@ func (q *Queries) ListChatMessages(ctx context.Context, chatID int64) ([]Message
 			&i.SenderID,
 			&i.Content,
 			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUsersChats = `-- name: ListUsersChats :many
+SELECT c.id, c.name, c.is_group, c.created_at, c.updated_at
+FROM chats c
+JOIN chat_members cm ON cm.chat_id = c.id
+WHERE cm.user_id = $1
+ORDER BY c.updated_at DESC
+`
+
+func (q *Queries) ListUsersChats(ctx context.Context, userID int64) ([]Chat, error) {
+	rows, err := q.db.Query(ctx, listUsersChats, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Chat
+	for rows.Next() {
+		var i Chat
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.IsGroup,
+			&i.CreatedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}

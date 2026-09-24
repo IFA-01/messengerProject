@@ -58,6 +58,7 @@ func main() {
 
 			r.Get("/users/me", handlers.HandleGetUser(q))
 			r.Post("/chats", handlers.HandleCreateChat(q))
+			r.Get("/chats", handlers.HandleListChats(q))
 
 			r.Post("/messages", handlers.HandleCreateMessage(q))
 			r.Get("/messages/{chatID}", handlers.HandleListMessages(q))
