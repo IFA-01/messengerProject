@@ -1,17 +1,31 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import App from './App';
 
-describe('App', () => {
-  it('renders login route', () => {
+describe('App routing', () => {
+  afterEach(() => {
+    localStorage.clear();
+  });
+
+  it('renders the login page on /login', () => {
     render(
       <MemoryRouter initialEntries={['/login']}>
         <App />
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole('heading', { name: 'Login' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Вход' })).toBeInTheDocument();
+  });
+
+  it('redirects unauthenticated users from / to the login page', () => {
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('heading', { name: 'Вход' })).toBeInTheDocument();
   });
 });

@@ -1,4 +1,5 @@
 import { useEffect, useState, type SubmitEventHandler } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { getMe } from '../api/auth';
 import { createChat, listChats } from '../api/chats';
@@ -6,8 +7,16 @@ import { listMessages, sendMessage } from '../api/messages';
 import type { Chat } from '../types/chat';
 import type { Message } from '../types/message';
 import { ApiError } from '../api/client';
+import { useMediaQuery } from '../hooks/useMediaQuery';
+import { getAvatarLetter, getPeerName } from '../utils/chat';
+
+const MOBILE_QUERY = '(max-width: 720px)';
 
 export default function MessengerPage() {
+  const navigate = useNavigate();
+  const isMobile = useMediaQuery(MOBILE_QUERY);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
   const [myUserId, setMyUserId] = useState<number | null>(null);
   const [myUsername, setMyUsername] = useState('');
 
@@ -52,6 +61,11 @@ export default function MessengerPage() {
   }, [selectedChatId]);
   const selectedChat = chats.find((c) => c.id === selectedChatId);
 
+  const openChat = (chatId: number) => {
+    setSelectedChatId(chatId);
+    if (isMobile) setSidebarOpen(false);
+  };
+
   const handleCreateChat: SubmitEventHandler<HTMLFormElement> = async (e) => {
     e.preventDefault();
     setError('');
@@ -70,7 +84,7 @@ export default function MessengerPage() {
         const exists = prev.some((c) => c.id === chat.id);
         return exists ? prev : [...prev, chat];
       });
-      setSelectedChatId(chat.id);
+      openChat(chat.id);
       setPeerUsername('');
     } catch (error) {
       if (error instanceof ApiError) {
@@ -100,46 +114,94 @@ export default function MessengerPage() {
     }
   };
 
-  return (
-    <div className="messenger">
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    navigate('/login', { replace: true });
+  };
 
-      <aside className="sidebar">
-        <div className="sidebar-header">Чаты</div>
-        {error && <div className="error-box" style={{ margin: '12px' }}>{error}</div>}
-        <form onSubmit={handleCreateChat} style={{ padding: '12px' }}>
-          <div className="field">
-            <label>Username собеседника</label>
-            <input
-              value={peerUsername}
-              onChange={(e) => setPeerUsername(e.target.value)}
-              required
-            />
-          </div>
-          <button className="btn" type="submit">Создать чат</button>
+  return (
+    <div
+      className={`messenger ${sidebarOpen ? '' : 'sidebar-collapsed'}`}
+      data-testid="messenger"
+    >
+      <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} />
+
+      <aside className="sidebar" inert={!sidebarOpen}>
+        <div className="sidebar-header">
+          <button
+            className="btn btn-icon"
+            type="button"
+            aria-label="Скрыть список чатов"
+            onClick={() => setSidebarOpen(false)}
+          >
+            ☰
+          </button>
+          Чаты
+          <button className="btn btn-logout" type="button" onClick={handleLogout}>
+            Выйти
+          </button>
+        </div>
+        <form className="create-chat-form" onSubmit={handleCreateChat}>
+          <input
+            aria-label="Username собеседника"
+            placeholder="Username собеседника"
+            value={peerUsername}
+            onChange={(e) => setPeerUsername(e.target.value)}
+            required
+          />
+          <button className="btn btn-accent" type="submit">
+            Создать
+          </button>
         </form>
+        {error && <div className="error-box">{error}</div>}
 
         <div className="chat-list">
           {chats.map(chat => (
             <button
               key={chat.id}
+              type="button"
               className={`chat-item ${selectedChatId === chat.id ? 'active' : ''}`}
-              onClick={() => setSelectedChatId(chat.id)}
+              onClick={() => openChat(chat.id)}
             >
-              <div className="chat-item__name">{chat.name}</div>
-              <div className="chat-item__preview">Последнее сообщение...</div>
+              <div className="avatar">{getAvatarLetter(chat.name, myUsername)}</div>
+              <div className="chat-item__body">
+                <div className="chat-item__name">{getPeerName(chat.name, myUsername)}</div>
+                <div className="chat-item__preview">Последнее сообщение...</div>
+              </div>
             </button>
           )) }
         </div>
       </aside>
 
       <section className="chat-panel">
+        <div className="chat-header">
+          {!sidebarOpen && (
+            <button
+              className="btn btn-icon"
+              type="button"
+              aria-label="Показать список чатов"
+              onClick={() => setSidebarOpen(true)}
+            >
+              ☰
+            </button>
+          )}
+          {selectedChat ? (
+            <>
+              <div className="avatar avatar--small">
+                {getAvatarLetter(selectedChat.name, myUsername)}
+              </div>
+              {getPeerName(selectedChat.name, myUsername)}
+            </>
+          ) : (
+            'Сообщения'
+          )}
+        </div>
         {!selectedChatId ? (
-          <div className="empty-state">Выбери чат слева</div>
+          <div className="empty-state">
+            {sidebarOpen ? 'Выбери чат' : 'Открой список чатов, чтобы выбрать чат'}
+          </div>
         ) : (
           <>
-            <div className="chat-header">
-              {selectedChat?.name ?? 'Чат'}
-            </div>
             <div className="messages">
               {(messages ?? []).map(msg => (
                 <div
@@ -160,7 +222,9 @@ export default function MessengerPage() {
                 value={newMessage}
                 onChange={e => setNewMessage(e.target.value)}
               />
-              <button className="btn" type="submit">→</button>
+              <button className="btn btn-accent" type="submit" aria-label="Отправить">
+                ↑
+              </button>
             </form>
           </>
         )}
