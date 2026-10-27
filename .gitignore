@@ -1,0 +1,16 @@
+.env
+web/node_modules/
+web/dist/
+web/coverage/
+*.exe
+*.log
+bin/
+build/
+dist/
+tmp/
+temp/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+config/config.go
