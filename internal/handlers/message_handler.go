@@ -2,18 +2,24 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"net/http"
 	"strconv"
 
+	"github.com/IFA-01/messenger/internal/middleware"
 	"github.com/IFA-01/messenger/internal/repository/queries"
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5"
 )
 
 func HandleCreateMessage(q *queries.Queries) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		userID := r.Context().Value("userID").(int64)
+		userID, ok := middleware.UserIDFromContext(r.Context())
+		if !ok {
+			respondWithError(w, http.StatusUnauthorized, "Unauthorized")
+			return
+		}
 
 		type parameters struct {
 			ChatID  int64  `json:"chat_id"`
@@ -22,7 +28,7 @@ func HandleCreateMessage(q *queries.Queries) http.HandlerFunc {
 		params := parameters{}
 
 		if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
-			respondWithError(w, http.StatusBadRequest, fmt.Sprintf("error parsing json: %v", err))
+			respondWithError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
 
@@ -32,8 +38,12 @@ func HandleCreateMessage(q *queries.Queries) http.HandlerFunc {
 		}
 
 		_, err := q.GetChatByID(r.Context(), params.ChatID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			respondWithError(w, http.StatusNotFound, "chat not found")
+			return
+		}
 		if err != nil {
-			respondWithError(w, http.StatusNotFound, fmt.Sprintf("chat not found with id: %d", params.ChatID))
+			respondWithInternalError(w, err)
 			return
 		}
 
@@ -42,11 +52,11 @@ func HandleCreateMessage(q *queries.Queries) http.HandlerFunc {
 			UserID: userID,
 		})
 		if err != nil {
-			respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("error checking chat member: %v", err))
+			respondWithInternalError(w, err)
 			return
 		}
 		if !isChatMember {
-			respondWithError(w, http.StatusBadRequest, "you are not a member of this chat")
+			respondWithError(w, http.StatusForbidden, "you are not a member of this chat")
 			return
 		}
 
@@ -56,7 +66,7 @@ func HandleCreateMessage(q *queries.Queries) http.HandlerFunc {
 			Content:  params.Content,
 		})
 		if err != nil {
-			respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("error creating message: %v", err))
+			respondWithInternalError(w, err)
 			return
 		}
 
@@ -66,12 +76,16 @@ func HandleCreateMessage(q *queries.Queries) http.HandlerFunc {
 
 func HandleListMessages(q *queries.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userID := r.Context().Value("userID").(int64)
+		userID, ok := middleware.UserIDFromContext(r.Context())
+		if !ok {
+			respondWithError(w, http.StatusUnauthorized, "Unauthorized")
+			return
+		}
 
 		chatIDstr := chi.URLParam(r, "chatID")
 		chatID, err := strconv.ParseInt(chatIDstr, 10, 64)
 		if err != nil {
-			respondWithError(w, http.StatusBadRequest, fmt.Sprintf("invalid chat id: %s", chatIDstr))
+			respondWithError(w, http.StatusBadRequest, "invalid chat id")
 			return
 		}
 
@@ -80,7 +94,7 @@ func HandleListMessages(q *queries.Queries) http.HandlerFunc {
 			UserID: userID,
 		})
 		if err != nil {
-			respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("error checking chat member: %v", err))
+			respondWithInternalError(w, err)
 			return
 		}
 		if !isChatMember {
@@ -90,7 +104,7 @@ func HandleListMessages(q *queries.Queries) http.HandlerFunc {
 
 		messages, err := q.ListChatMessages(r.Context(), chatID)
 		if err != nil {
-			respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("error listing messages: %v", err))
+			respondWithInternalError(w, err)
 			return
 		}
 

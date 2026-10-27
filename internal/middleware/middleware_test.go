@@ -54,7 +54,7 @@ func TestAuthMiddlewarePassesUserID(t *testing.T) {
 
 	var gotUserID int64
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotUserID, _ = r.Context().Value("userID").(int64)
+		gotUserID, _ = UserIDFromContext(r.Context())
 		w.WriteHeader(http.StatusOK)
 	})
 

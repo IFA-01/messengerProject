@@ -46,7 +46,6 @@ func main() {
 	r.Get("/ping", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("pong"))
 	})
-	r.Get("/err", handlers.HandleErr)
 
 	//routes
 	r.Route("/v1", func(r chi.Router) {

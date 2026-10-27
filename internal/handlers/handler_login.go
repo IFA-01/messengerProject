@@ -2,12 +2,13 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"net/http"
 
 	"github.com/IFA-01/messenger/internal/auth"
 	"github.com/IFA-01/messenger/internal/models"
 	"github.com/IFA-01/messenger/internal/repository/queries"
+	"github.com/jackc/pgx/v5"
 )
 
 func HandleLogin(q *queries.Queries, jwtSecret string) http.HandlerFunc {
@@ -22,37 +23,38 @@ func HandleLogin(q *queries.Queries, jwtSecret string) http.HandlerFunc {
 		decoder := json.NewDecoder(r.Body)
 		err := decoder.Decode(&params)
 		if err != nil {
-			respondWithError(w, 400, fmt.Sprintf("error parsing JSON: %v", err))
+			respondWithError(w, http.StatusBadRequest, "Invalid JSON body")
 			return
 		}
 		user, err := q.GetUserByEmail(r.Context(), params.Email)
+		if errors.Is(err, pgx.ErrNoRows) {
+			respondWithError(w, http.StatusUnauthorized, "Invalid email or password")
+			return
+		}
 		if err != nil {
-			respondWithError(w, 400, fmt.Sprintf("Error getting user by email: %v:", err))
+			respondWithInternalError(w, err)
 			return
 		}
 
 		if err := auth.CheckPassword(params.Password, user.PasswordHash); err != nil {
-			respondWithError(w, 400, fmt.Sprintf("Invalid password: %v", err))
+			respondWithError(w, http.StatusUnauthorized, "Invalid email or password")
 			return
 		}
 
 		token, err := auth.GenerateToken(user.ID, jwtSecret)
 		if err != nil {
-			respondWithError(w, 400, fmt.Sprintf("Error generating token: %v", err))
+			respondWithInternalError(w, err)
 			return
 		}
-
-		responseUser := models.DatabaseUserToUser(user)
-		responseUser.PasswordHash = ""
 
 		type Loginresponse struct {
 			Token string      `json:"token"`
 			User  models.User `json:"user"`
 		}
 
-		respondWithJSON(w, 200, Loginresponse{
+		respondWithJSON(w, http.StatusOK, Loginresponse{
 			Token: token,
-			User:  responseUser,
+			User:  models.DatabaseUserToUser(user),
 		})
 	}
 }

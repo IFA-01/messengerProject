@@ -43,15 +43,6 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	return i, err
 }
 
-const deleteUser = `-- name: DeleteUser :exec
-DELETE FROM users where id = $1
-`
-
-func (q *Queries) DeleteUser(ctx context.Context, id int64) error {
-	_, err := q.db.Exec(ctx, deleteUser, id)
-	return err
-}
-
 const getUserByEmail = `-- name: GetUserByEmail :one
 SELECT id, username, nickname, email, password_hash, last_seen, created_at, updated_at FROM users WHERE email = $1 LIMIT 1
 `
@@ -78,26 +69,6 @@ SELECT id, username, nickname, email, password_hash, last_seen, created_at, upda
 
 func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
 	row := q.db.QueryRow(ctx, getUserByID, id)
-	var i User
-	err := row.Scan(
-		&i.ID,
-		&i.Username,
-		&i.Nickname,
-		&i.Email,
-		&i.PasswordHash,
-		&i.LastSeen,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const getUserByNickName = `-- name: GetUserByNickName :one
-SELECT id, username, nickname, email, password_hash, last_seen, created_at, updated_at FROM users WHERE nickname = $1 LIMIT 1
-`
-
-func (q *Queries) GetUserByNickName(ctx context.Context, nickname string) (User, error) {
-	row := q.db.QueryRow(ctx, getUserByNickName, nickname)
 	var i User
 	err := row.Scan(
 		&i.ID,

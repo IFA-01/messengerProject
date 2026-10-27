@@ -7,9 +7,6 @@ import (
 )
 
 func respondWithError(w http.ResponseWriter, code int, message string) {
-	if code > 499 {
-		log.Println("Responding with 5XX error:", message)
-	}
 	type errorResponse struct {
 		Error string `json:"error"`
 	}
@@ -28,4 +25,9 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(code)
 	w.Write(dat)
+}
+
+func respondWithInternalError(w http.ResponseWriter, err error) {
+	log.Printf("internal error: %v", err)
+	respondWithError(w, http.StatusInternalServerError, "internal server error")
 }

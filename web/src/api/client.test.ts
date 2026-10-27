@@ -50,4 +50,12 @@ describe('request', () => {
     expect((error as ApiError).status).toBe(401);
     expect((error as ApiError).message).toBe('Unauthorized');
   });
+
+  it('uses the error field from a JSON error body', async () => {
+    mockFetch(
+      new Response(JSON.stringify({ error: 'invalid email or password' }), { status: 401 }),
+    );
+    const error = await request('/v1/login').catch((e: unknown) => e);
+    expect((error as ApiError).message).toBe('invalid email or password');
+  });
 });

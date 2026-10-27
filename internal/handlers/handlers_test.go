@@ -1,21 +1,23 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/IFA-01/messenger/internal/middleware"
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // These tests cover validation paths that return before any database call,
 // so the handlers can be constructed with a nil *queries.Queries.
 
 func withUserID(r *http.Request, userID int64) *http.Request {
-	return r.WithContext(context.WithValue(r.Context(), "userID", userID))
+	return r.WithContext(middleware.WithUserID(r.Context(), userID))
 }
 
 func decodeError(t *testing.T, rec *httptest.ResponseRecorder) string {
@@ -115,5 +117,46 @@ func TestListMessagesRejectsInvalidChatID(t *testing.T) {
 
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("got status %d, want %d", rec.Code, http.StatusBadRequest)
+	}
+}
+
+func TestHandlersRequireUserID(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/v1/chats", nil)
+	rec := httptest.NewRecorder()
+
+	HandleListChats(nil).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("got status %d, want %d", rec.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestCreateUserRequiresFields(t *testing.T) {
+	body := strings.NewReader(`{"username": "", "email": "a@b.c", "password": "secret"}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/users", body)
+	rec := httptest.NewRecorder()
+
+	HandlerCreateUser(nil).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("got status %d, want %d", rec.Code, http.StatusBadRequest)
+	}
+}
+
+func TestIsUniqueViolation(t *testing.T) {
+	unique := &pgconn.PgError{Code: "23505"}
+	other := &pgconn.PgError{Code: "23503"}
+
+	if !isUniqueViolation(unique) {
+		t.Error("expected 23505 to be a unique violation")
+	}
+	if !isUniqueViolation(fmt.Errorf("create user: %w", unique)) {
+		t.Error("expected wrapped 23505 to be a unique violation")
+	}
+	if isUniqueViolation(other) {
+		t.Error("23503 must not be a unique violation")
+	}
+	if isUniqueViolation(nil) {
+		t.Error("nil must not be a unique violation")
 	}
 }

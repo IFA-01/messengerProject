@@ -30,7 +30,13 @@ export async function request<T>(
 
   if (!response.ok) {
     const text = await response.text();
-    throw new ApiError(text || response.statusText, response.status);
+    let message = text || response.statusText;
+    try {
+      message = JSON.parse(text).error ?? message;
+    } catch {
+      // plain-text response, e.g. 401 from the auth middleware
+    }
+    throw new ApiError(message.trim(), response.status)
   }
 
   if (response.status === 204) {
